@@ -4,6 +4,7 @@ import pandas as pd
 def data_preprocessing() -> pd.DataFrame:
     # read and clean data
     df = pd.read_csv("./data/raw_data.csv")
+    print(df.shape)
     df.columns = df.columns.str.replace(" ", "_").str.lower()
     df[["order_number", "user_id", "created_at"]] = df[
         ["order_number", "user_id", "created_at"]
@@ -20,11 +21,12 @@ def data_preprocessing() -> pd.DataFrame:
     # add useful columns
     df["total_discount"] = df["discount"] + df["voucher_discount"]
     df["value"] = df["items"] * df["price"]
+    df["discount_rate"] = df["total_discount"] / df["value"]
     df["discounted_value"] = df["value"] - df["total_discount"]
     df["shipping_fee_discount"] = df["total_shipping_fee"] - df["final_shipping_fee"]
 
     print(df.shape)
-    df.to_csv("item_data.csv")
+    df.to_csv("./data/item_data.csv")
     return df
 
 
@@ -53,17 +55,17 @@ def aggregate_items(df: pd.DataFrame):
     df = df.reset_index().set_index("order_number")
     df["final_discount"] = df["total_discount"] + df["shipping_fee_discount"]
     df["paid_value"] = df["discounted_value"] + df["final_shipping_fee"]
+    df["discount_rate"] = df["total_discount"] / df["value"]
+    df["final_discount_rate"] = df["final_discount"] / df["paid_value"]
 
     print(df.shape)
-    df.to_csv("order_data.csv")
+    df.to_csv("./data/order_data.csv")
     return df
 
 
 def main() -> None:
-
     item_df = data_preprocessing()
     order_df = aggregate_items(item_df)
-    print(order_df.shape)
 
 
 if __name__ == "__main__":

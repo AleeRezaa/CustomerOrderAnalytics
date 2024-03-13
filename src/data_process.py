@@ -75,11 +75,51 @@ def aggregate_customers(df: pd.DataFrame) -> pd.DataFrame:
         last_order=("created_at", "max"),
         orders_count=("created_at", "count"),
         all_items=("all_items", "sum"),
-        avg_order_value=("paid_value", "mean"),
+        avg_items=("distinct_items", "mean"),
+        avg_paid_value=("paid_value", "mean"),
+        total_paid_value=("paid_value", "sum"),
         avg_shipping_fee=("final_shipping_fee", "mean"),
         avg_discount_rate=("discount_rate", "mean"),
+        avg_final_discount=("final_discount", "mean"),
         avg_order_interval=("order_interval", "mean"),
     )
+
+    df["avg_order_interval"] = df["avg_order_interval"].dt.days
+    df["days_from_last_order"] = (df["last_order"].max() - df["last_order"]).dt.days
+
+    # define loyal customers
+    df["loyal_customer"] = (
+        (df["orders_count"] > 1)
+        & (df["days_from_last_order"] <= 30)
+        & (df["avg_order_interval"] <= 20)
+    )
+    print(
+        f"Loyal customers average orders count: {df[df['loyal_customer']]['orders_count'].mean()}"
+    )
+
+    # define churned customers
+    df["churned_customer"] = (
+        (df["days_from_last_order"] > 2 * df["avg_order_interval"])
+        & (df["avg_order_interval"] > 10)
+        & (~df["loyal_customer"])
+    )
+    print(
+        f"Churned customers average days from last order: {df[df['churned_customer']]['days_from_last_order'].mean()}"
+    )
+
+    # define other customer groups
+    df["high_value_customer"] = df["total_paid_value"] > df[
+        "total_paid_value"
+    ].quantile(0.8)
+    df["high_paid_customer"] = df["avg_paid_value"] > df["avg_paid_value"].quantile(0.8)
+    df["frequent_order_customer"] = (
+        df["avg_order_interval"] < df["avg_order_interval"].quantile(0.7)
+    ) & (df["orders_count"] > df["orders_count"].quantile(0.7))
+    df["multiple_item_customer"] = df["avg_items"] > df["avg_items"].quantile(0.8)
+    df["discount_rate_customer"] = df["avg_discount_rate"] > df[
+        "avg_discount_rate"
+    ].quantile(0.8)
+    df["zero_shipping_fee_customer"] = df["avg_shipping_fee"] == 0
 
     print(df.shape)
     df.to_csv("./data/customer_data.csv")

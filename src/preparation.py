@@ -11,12 +11,14 @@ def data_preprocessing() -> pd.DataFrame:
     ].astype(str)
 
     # fix excel dates
-    df.created_at = df.created_at.astype(str)
-    numeric_dates_filter = df.created_at.str.find(" ") == -1
+    df["created_at"] = df["created_at"].astype(str)
+    numeric_dates_filter = df["created_at"].str.find(" ") == -1
     df.loc[numeric_dates_filter, "created_at"] = pd.to_datetime(
-        df[numeric_dates_filter].created_at.astype(float), unit="D", origin="1899-12-30"
+        df[numeric_dates_filter]["created_at"].astype(float),
+        unit="D",
+        origin="1899-12-30",
     )
-    df.created_at = pd.to_datetime(df.created_at)
+    df["created_at"] = df["created_at"].astype("datetime64[s]")
 
     # add useful columns
     df["total_discount"] = df["discount"] + df["voucher_discount"]
@@ -30,7 +32,7 @@ def data_preprocessing() -> pd.DataFrame:
     return df
 
 
-def aggregate_items(df: pd.DataFrame):
+def aggregate_orders(df: pd.DataFrame):
     df = df.groupby(
         by=[
             "order_number",
@@ -63,9 +65,31 @@ def aggregate_items(df: pd.DataFrame):
     return df
 
 
+def aggregate_customers(df: pd.DataFrame) -> pd.DataFrame:
+    # calculate order interval for each customer
+    df.sort_values(by=["user_id", "created_at"], inplace=True)
+    df["order_interval"] = df.groupby("user_id")["created_at"].diff()
+
+    df = df.groupby(by="user_id").agg(
+        first_order=("created_at", "min"),
+        last_order=("created_at", "max"),
+        orders_count=("created_at", "count"),
+        all_items=("all_items", "sum"),
+        avg_order_value=("paid_value", "mean"),
+        avg_shipping_fee=("final_shipping_fee", "mean"),
+        avg_discount_rate=("discount_rate", "mean"),
+        avg_order_interval=("order_interval", "mean"),
+    )
+
+    print(df.shape)
+    df.to_csv("./data/customer_data.csv")
+    return df
+
+
 def main() -> None:
     item_df = data_preprocessing()
-    order_df = aggregate_items(item_df)
+    order_df = aggregate_orders(item_df)
+    customers_df = aggregate_customers(order_df)
 
 
 if __name__ == "__main__":

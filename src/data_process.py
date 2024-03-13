@@ -113,7 +113,7 @@ def aggregate_customers(df: pd.DataFrame) -> pd.DataFrame:
     ].quantile(0.8)
     df["high_paid_customer"] = df["avg_paid_value"] > df["avg_paid_value"].quantile(0.8)
     df["frequent_order_customer"] = (
-        df["avg_order_interval"] < df["avg_order_interval"].quantile(0.7)
+        df["avg_order_interval"] < df["avg_order_interval"].quantile(0.3)
     ) & (df["orders_count"] > df["orders_count"].quantile(0.7))
     df["multiple_item_customer"] = df["avg_items"] > df["avg_items"].quantile(0.8)
     df["discount_rate_customer"] = df["avg_discount_rate"] > df[
